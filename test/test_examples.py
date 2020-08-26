@@ -30,8 +30,7 @@ def suite():
 
 class TestMapAfrica(test.TestCase):
 
-    @staticmethod
-    def test_map_africa():
+    def test_map_africa(self):
         # Generate a regular grid of latitude and longitudes with 0.1
         # degree resolution for the region of interest.
         lat, lon = itur.utils.regular_lat_lon_grid(lat_max=60,
@@ -63,16 +62,17 @@ class TestMapAfrica(test.TestCase):
 
         # Plot the results
         try:
-            m = itur.utils.plot_in_map(Att, lat, lon,
-                                       cbar_text='Atmospheric attenuation [dB]',
-                                       cmap='magma')
+            m = itur.utils.carto_plot_in_map(Att, lat, lon,
+                                  cbar_text="Atmospheric attenuation [dB]",
+                                  cmap="magma",filename="test1")
 
             # Plot the satellite location
             m.scatter(lon_sat, lat_sat, c='white', s=20)
+            plt.savefig("test1_with_satellite")
 
-            m = itur.utils.plot_in_map(
-                T, lat, lon, cbar_text='Surface mean temperature [C]',
-                cmap='RdBu_r')
+            m = itur.utils.carto_plot_in_map(T, lat, lon,
+                                  cbar_text="Surface mean temperature [C]",
+                                             filename="test2")
         except RuntimeError as e:
             print(e)
 
