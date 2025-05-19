@@ -210,10 +210,10 @@ class _ITU530_17_():
             p_t = p_0 * 10 ** (-At / 10)
             qa_p = -20 * np.log10(-np.log((100 - p_t) / 100)) / At
             q_t = ((qa_p - 2) /
-                   (1 + 0.3 * 10 ** (-At / 20) * 10 ** (-0.016 * At)) -
+                   ((1 + 0.3 * 10 ** (-At / 20)) * 10 ** (-0.016 * At)) -
                    4.3 * (10**(-At / 20) + At / 800))
             q_a = 2 + (1 + 0.3 * 10**(-A / 20)) * (10**(-0.016 * A)) *\
-                (q_t + 4.3 * (10**(-A / 20 + A / 800)))
+                (q_t + 4.3 * (10**(-A / 20) + A / 800))
             p_W = 100 * (1 - np.exp(-10 ** (-q_a * A / 20)))
             return p_W
 
@@ -309,8 +309,8 @@ class _ITU530_17_():
 
         def func_bisect(p):
             return A001 * C1 * p ** (- (C2 + C3 * np.log10(p))) - Ap
-        
-        if np.sign(func_bisect(1e-9)) == np.sign(func_bisect(100)): 
+
+        if np.sign(func_bisect(1e-9)) == np.sign(func_bisect(100)):
             return 0
 
         return bisect(func_bisect, 1e-9, 100)
