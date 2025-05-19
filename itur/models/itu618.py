@@ -9,6 +9,7 @@ import scipy.special
 import scipy.integrate
 from astropy import units as u
 
+from itur import utils
 from itur.models.itu453 import water_vapour_pressure,\
     wet_term_radio_refractivity, map_wet_term_radio_refractivity
 from itur.models.itu837 import rainfall_rate, rainfall_probability
@@ -16,7 +17,7 @@ from itur.models.itu838 import rain_specific_attenuation
 from itur.models.itu839 import rain_height
 from itur.models.itu1511 import topographic_altitude
 from itur.utils import prepare_input_array, prepare_output_array,\
-    prepare_quantity, compute_distance_earth_to_earth, get_input_type, EPSILON
+    prepare_quantity, compute_distance_earth_to_earth, get_input_type
 
 import warnings
 
@@ -107,9 +108,8 @@ class _ITU618():
 #        elif version == 1:
 #            self.instance = _ITU618_1()
         else:
-            raise ValueError(
-                f"Version {version} is not implemented" " for the ITU-R P.618 model."
-            )
+            raise ValueError(('Version {0} is not implemented'
+                              ' for the ITU-R P.618 model.').format(version))
 
     @property
     def __version__(self):
@@ -151,7 +151,7 @@ class _ITU618():
                                                lat2, lon2, a2, el2, f, tau=45,
                                                hs1=None, hs2=None):
         fcn = np.vectorize(
-            self.instance.site_diversity_rain_outage_probability)
+                self.instance.site_diversity_rain_outage_probability)
         return np.array(fcn(lat1, lon1, a1, el1,
                             lat2, lon2, a2, el2,
                             f, tau, hs1, hs2).tolist())
@@ -184,7 +184,7 @@ class _ITU618_13():
             Ls = np.where(
                 el >= 5, (hr - hs) / (np.sin(np.deg2rad(el))),         # Eq. 1
                 2 * (hr - hs) / (((np.sin(np.deg2rad(el)))**2 +
-                                  2 * (hr - hs) / Re)**0.5 + (np.sin(np.deg2rad(el)))))  # Eq. 2
+                2 * (hr - hs) / Re)**0.5 + (np.sin(np.deg2rad(el)))))  # Eq. 2
 
         # Step 3: Calculate the horizontal projection, LG, of the
         # slant-path length
@@ -193,7 +193,7 @@ class _ITU618_13():
         # Obtain the raingall rate, exceeded for 0.01% of an average year,
         # if not provided, as described in ITU-R P.837.
         if R001 is None:
-            R001 = rainfall_rate(lat, lon, 0.01).to(u.mm / u.hr).value + EPSILON
+            R001 = rainfall_rate(lat, lon, 0.01).to(u.mm / u.hr).value
 
         # Step 5: Obtain the specific attenuation gammar using the frequency
         # dependent coefficients as given in ITU-R P.838
@@ -211,9 +211,8 @@ class _ITU618_13():
         # for 0.01% of the time:
         eta = np.rad2deg(np.arctan2(hr - hs, Lg * r001))
 
-        Delta_h = np.where(hr - hs <= 0, EPSILON, (hr - hs))
         Lr = np.where(eta > el, Lg * r001 / np.cos(np.deg2rad(el)),
-                      Delta_h / np.sin(np.deg2rad(el)))
+                      (hr - hs) / np.sin(np.deg2rad(el)))
 
         xi = np.where(np.abs(lat) < 36, 36 - np.abs(lat), 0)
 
@@ -233,7 +232,7 @@ class _ITU618_13():
         if p >= 1:
             beta = np.zeros_like(A001)
         else:
-            beta = np.where(np.abs(lat) >= 36,
+            beta = np.where(np.abs(lat) > 36,
                             np.zeros_like(A001),
                             np.where((np.abs(lat) < 36) & (el > 25),
                                      -0.005 * (np.abs(lat) - 36),
@@ -272,7 +271,7 @@ class _ITU618_13():
             Ls = np.where(
                 el >= 5, (hr - hs) / (np.sin(np.deg2rad(el))),         # Eq. 1
                 2 * (hr - hs) / (((np.sin(np.deg2rad(el)))**2 +
-                                  2 * (hr - hs) / Re)**0.5 + (np.sin(np.deg2rad(el)))))  # Eq. 2
+                2 * (hr - hs) / Re)**0.5 + (np.sin(np.deg2rad(el)))))  # Eq. 2
 
         d = Ls * np.cos(np.deg2rad(el))
         rho = 0.59 * np.exp(-abs(d) / 31) + 0.41 * np.exp(-abs(d) / 800)
@@ -340,7 +339,7 @@ class _ITU618_13():
             lat1, lon1, f, el1, hs1, P_1 * 100, tau)
 
         sigma_lna2, m_lna2 = self.fit_rain_attenuation_to_lognormal(
-            lat2, lon2, f, el2, hs2, P_2 * 100, tau)
+            lat2, lon2, f, el2, hs1, P_2 * 100, tau)
 
         rho_a = 0.94 * np.exp(-d / 30) + 0.06 * np.exp(-(d / 500)**2)
         lim_1 = (np.log(a1) - m_lna1) / sigma_lna1
@@ -436,12 +435,13 @@ class _ITU618_13():
             # polarization tilt angle can be scaled to another frequency and
             # polarization tilt angle using the semi-empirical formula:
             XPD_p = XPD_p - 20 * np.log10(
-                f_orig * np.sqrt(1 - 0.484 * (1 + np.cos(np.deg2rad(4 * tau)))) /
-                (f * np.sqrt(1 - 0.484 * (1 + np.cos(np.deg2rad(4 * tau))))))
+              f_orig * np.sqrt(1 - 0.484 * (1 - np.cos(np.deg2rad(4 * tau)))) /
+              (f * np.sqrt(1 - 0.484 * (1 - np.cos(np.deg2rad(4 * tau))))))
         return XPD_p
 
     @classmethod
-    def scintillation_attenuation_sigma(cls, lat, lon, f, el, p, D, eta=0.5,
+
+    def scintillation_attenuation_sigma(self, lat, lon, f, el, p, D, eta=0.5,
                                         T=None, H=None, P=None, hL=1000):
         # Step 1: For the value of t, calculate the saturation water vapour
         # pressure, es, (hPa), as specified in Recommendation ITU-R P.453.
@@ -479,11 +479,11 @@ class _ITU618_13():
         return sigma
 
     @classmethod
-    def scintillation_attenuation(cls, lat, lon, f, el, p, D, eta=0.5, T=None,
+    def scintillation_attenuation(self, lat, lon, f, el, p, D, eta=0.5, T=None,
                                   H=None, P=None, hL=1000):
         # Step 1 - 7: Calculate the standard deviation of the signal for the
         # applicable period and propagation path:
-        sigma = cls.scintillation_attenuation_sigma(lat, lon, f, el, p,
+        sigma = self.scintillation_attenuation_sigma(lat, lon, f, el, p,
                                                      D, eta, T, H, P, hL)
         # Step 8: Calculate the time percentage factor, a(p), for the time
         # percentage, p, in the range between 0.01% < p < 50%:
@@ -509,7 +509,7 @@ class _ITU618_12():
             warnings.warn(
                 RuntimeWarning('The method to compute the rain attenuation in '
                                'recommendation ITU-P 618-12 is only valid for '
-                               'unavailability values between 0.001% and 5%'))
+                               'unavailability values between 0.001 and 5'))
 
         Re = 8500   # Efective radius of the Earth (8500 km)
 
@@ -534,7 +534,7 @@ class _ITU618_12():
         # Obtain the raingall rate, exceeded for 0.01% of an average year,
         # if not provided, as described in ITU-R P.837.
         if R001 is None:
-            R001 = rainfall_rate(lat, lon, 0.01).to(u.mm / u.hr).value + EPSILON
+            R001 = rainfall_rate(lat, lon, 0.01).to(u.mm / u.hr).value
 
         # Step 5: Obtain the specific attenuation gammar using the frequency
         # dependent coefficients as given in ITU-R P.838
@@ -550,10 +550,9 @@ class _ITU618_12():
         # Step 7: Calculate the vertical adjustment factor, v0.01,
         # for 0.01% of the time:
         eta = np.rad2deg(np.arctan2(hr - hs, Lg * r001))
-        
-        Delta_h = np.where(hr - hs <= 0, EPSILON, (hr - hs))
+
         Lr = np.where(eta > el, Lg * r001 / np.cos(np.deg2rad(el)),
-                      Delta_h / np.sin(np.deg2rad(el)))
+                      (hr - hs) / np.sin(np.deg2rad(el)))
 
         xi = np.where(np.abs(lat) < 36, 36 - np.abs(lat), 0)
 
@@ -573,7 +572,7 @@ class _ITU618_12():
         if p >= 1:
             beta = np.zeros_like(A001)
         else:
-            beta = np.where(np.abs(lat) >= 36,
+            beta = np.where(np.abs(lat) > 36,
                             np.zeros_like(A001),
                             np.where((np.abs(lat) < 36) & (el > 25),
                                      -0.005 * (np.abs(lat) - 36),
@@ -719,11 +718,6 @@ def rain_attenuation(lat, lon, f, el, hs=None, p=0.01, R001=None,
 
     val = __model.rain_attenuation(lat, lon, f, el, hs=hs, p=p,
                                    R001=R001, tau=tau, Ls=Ls)
-    
-    # The values of attenuation cannot be negative. The ITU models end up
-    # giving out negative values for certain inputs
-    val[val < 0] = 0
-    
     return prepare_output_array(val, type_output) * u.dB
 
 
@@ -937,10 +931,6 @@ def scintillation_attenuation(lat, lon, f, el, p, D, eta=0.5, T=None,
 
     val = __model.scintillation_attenuation(
         lat, lon, f, el, p, D, eta=eta, T=T, H=H, P=P, hL=hL)
-    
-    # The values of attenuation cannot be negative. The ITU models end up
-    # giving out negative values for certain inputs
-    val[val < 0] = 0
 
     return prepare_output_array(val, type_output) * u.dB
 

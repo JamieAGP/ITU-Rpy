@@ -1,12 +1,11 @@
 # -*- coding: utf-8 -*-
-""" 
-``itur.utils`` is a utilities library for ITU-Rpy.
+""" ``itur.utils`` is a utilities library for ITU-Rpy.
 
 This utility library for ITU-Rpy contains methods to:
 * Load data and build an interpolator object.
 * Prepare the input and output arrays, and handle unit transformations.
-* Compute distances and elevation angles between two points on Earth and or space.
-
+* Compute distances and elevation angles between two points on Earth and
+  or space.
 """
 from __future__ import absolute_import
 from __future__ import division
@@ -27,14 +26,11 @@ dataset_dir = os.path.join(dir_path, 'data/')
 
 # Define numeric types including numpy types
 __NUMERIC_TYPES__ = [numbers.Number, int, float, complex,
-                     np.float16, np.float32, np.float64,
-                     np.int8, np.int16, np.int32, np.int64]
+                     float, np.float16, np.float32, np.float64,
+                     int, np.int8, np.int16, np.int32, np.int64]
 
 # Define the geodetic system using the WSG-84 ellipsoid
 __wgs84_geod__ = Geod(ellps='WGS84')
-
-# A very small quantity used to avoid log(0) errors.
-EPSILON = 1e-9
 
 
 def load_data_interpolator(path_lat, path_lon, path_data, interp_fcn,
@@ -94,7 +90,8 @@ def load_data(path, is_text=False, **kwargs):
     """
     # TODO: Change method to allow for h5df data too
     if not os.path.isfile(path):
-        raise RuntimeError(f"The path provided is not a file - {path}")
+        raise RuntimeError('The path provided is not a file - {0}'
+                           .format(path))
 
     _, file_extension = os.path.splitext(path)
 
@@ -104,7 +101,7 @@ def load_data(path, is_text=False, **kwargs):
         data = np.load(path)
     elif file_extension == '.txt':
         if is_text:
-            data = np.loadtxt(path, dtype=np.string_, delimiter=',', **kwargs)
+            data = np.loadtxt(path, dtype=str, delimiter=',', **kwargs)
         else:
             data = np.genfromtxt(path, dtype=float, delimiter=',', **kwargs)
 
@@ -233,9 +230,7 @@ def prepare_quantity(value, units=None, name_val=None):
 
     # If the units of the value are a temperature
     if isinstance(value, u.Quantity):
-        if value.unit == units:
-            return value.value
-        elif units in [u.K, u.deg_C, u.Kelvin, u.Celsius, u.imperial.deg_F]:
+        if units in [u.K, u.deg_C, u.Kelvin, u.Celsius, u.imperial.deg_F]:
             return value.to(units, equivalencies=u.temperature()).value
         else:
             return value.to(units).value
@@ -285,12 +280,12 @@ def compute_distance_earth_to_earth(lat_p, lon_p, lat_grid, lon_grid,
         (type(lat_p) in __NUMERIC_TYPES__) or
         (type(lat_grid) in __NUMERIC_TYPES__) or
         (len(lat_grid) < 10000) or
-            (isinstance(lat_grid, np.ndarray) and lat_grid.size < 1e5)):
-        return compute_distance_earth_to_earth_wgs84(
-            lat_p, lon_p, lat_grid, lon_grid)
+        (isinstance(lat_grid, np.ndarray) and lat_grid.size < 1e5)):
+            return compute_distance_earth_to_earth_wgs84(
+                    lat_p, lon_p, lat_grid, lon_grid)
     else:
         return compute_distance_earth_to_earth_haversine(
-            lat_p, lon_p, lat_grid, lon_grid)
+                lat_p, lon_p, lat_grid, lon_grid)
 
 
 def compute_distance_earth_to_earth_wgs84(lat_p, lon_p, lat_grid, lon_grid):

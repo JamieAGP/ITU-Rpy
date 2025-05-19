@@ -39,6 +39,7 @@ import numpy as np
 try:
     import cartopy.crs as ccrs
     import cartopy.feature as cpf
+    import cartopy.mpl.gridliner as cmpl
     plotting_installed = True
 except BaseException:
     plotting_installed = False
@@ -123,6 +124,7 @@ def plot_in_map(data, lat=None, lon=None, lat_min=None, lat_max=None,
     ax.gridlines(xlocs=meridians, ylocs=parallels, draw_labels=True,
                  color='white', linestyle=':', linewidth=0.2)
 
+    data = data.value if hasattr(data, 'unit') else data
     im = ax.contourf(lon, lat, data, 100, transform=ccrs.PlateCarree(),
                      **kwargs)
 
